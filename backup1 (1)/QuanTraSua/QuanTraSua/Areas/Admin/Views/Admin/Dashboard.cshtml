@@ -1,0 +1,142 @@
+@model IEnumerable<QuanTraSua.Models.Order>
+@using System.Text.Json
+
+@{
+    ViewData["Title"] = "Thống kê doanh thu";
+}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+<style>
+    :root { --admin-bg: #f4f7f6; --primary-color: #4e73df; }
+    body { background-color: var(--admin-bg); }
+    .stat-card { border: none; border-radius: 15px; transition: 0.3s; }
+    .stat-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+    .icon-box { width: 50px; height: 50px; background: rgba(255,255,255,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+    .chart-container { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold text-dark">DASHBOARD QUẢN TRỊ</h3>
+        <span class="badge bg-primary px-3 py-2">Real-time Data</span>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card stat-card bg-primary text-white p-3">
+                <div class="d-flex align-items-center">
+                    <div class="icon-box me-3"><i class="bi bi-currency-dollar fs-3"></i></div>
+                    <div>
+                        <p class="mb-0 opacity-75 small">TỔNG DOANH THU</p>
+                        <h3 class="fw-bold mb-0">@String.Format("{0:N0}", ViewBag.TotalRevenue)đ</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stat-card bg-success text-white p-3">
+                <div class="d-flex align-items-center">
+                    <div class="icon-box me-3"><i class="bi bi-cart-check fs-3"></i></div>
+                    <div>
+                        <p class="mb-0 opacity-75 small">TỔNG ĐƠN HÀNG</p>
+                        <h3 class="fw-bold mb-0">@ViewBag.TotalOrders</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stat-card bg-warning text-dark p-3">
+                <div class="d-flex align-items-center">
+                    <div class="icon-box me-3"><i class="bi bi-people fs-3"></i></div>
+                    <div>
+                        <p class="mb-0 opacity-75 small">TỔNG KHÁCH HÀNG</p>
+                        <h3 class="fw-bold mb-0">@ViewBag.TotalCustomers</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="chart-container">
+                <h5 class="fw-bold mb-4 text-primary"><i class="bi bi-graph-up me-2"></i>Doanh thu theo thời gian</h5>
+                <canvas id="revenueChart" height="300"></canvas>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="chart-container h-100">
+                <h5 class="fw-bold mb-4 text-primary"><i class="bi bi-pie-chart me-2"></i>Trạng thái đơn</h5>
+                <canvas id="statusChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4">
+        <div class="card-header bg-white py-3">
+            <h5 class="mb-0 fw-bold">Đơn hàng mới nhất</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Khách hàng</th>
+                        <th>Địa chỉ</th>
+                        <th>Ngày đặt</th>
+                        <th>Tổng tiền</th>
+                        <th>Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var order in Model) {
+                        <tr>
+                            <td>
+                                <div class="fw-bold">@order.CustomerName</div>
+                                <small class="text-muted">@order.Phone</small>
+                            </td>
+                            <td>@order.Address</td>
+                            <td>@order.OrderDate.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td class="fw-bold text-success">@String.Format("{0:N0}", order.TotalPrice)đ</td>
+                            <td><span class="badge bg-info text-dark">Mới</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Biểu đồ đường (Line Chart)
+        new Chart(document.getElementById('revenueChart'), {
+            type: 'line',
+            data: {
+                labels: @Html.Raw(ViewBag.ChartLabels),
+                datasets: [{
+                    label: 'Doanh thu (đ)',
+                    data: @Html.Raw(ViewBag.ChartData),
+                    borderColor: '#4e73df',
+                    backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        // Biểu đồ tròn (Doughnut)
+        new Chart(document.getElementById('statusChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Chờ xác nhận', 'Đã xác nhận'],
+                datasets: [{
+                    data: [@ViewBag.Pending, @ViewBag.Confirmed],
+                    backgroundColor: ['#f6c23e', '#1cc88a']
+                }]
+            }
+        });
+    });
+</script>
